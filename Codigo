@@ -1,0 +1,154 @@
+import numpy as np 
+from scipy import stats
+from scipy import signal
+from scipy import integrate
+import matplotlib.pyplot as plt
+import pandas as pd
+
+
+
+
+
+n = pd.read_csv("bits10k.csv") #Leer el archivo
+
+bits = np.array(n) # transformamos en una matriz de np
+
+N = len(bits) #definimos el numero de bits presentes
+
+
+
+
+
+#creando una esquema de modulacion 
+
+f = 5000 #estableciendo la frecuencia de operacion
+
+T = 1/f
+
+#numero de puntos por muestreo del periodo
+P = 30 #para definir la calidad con la que se muestra la onda
+
+# establecemo el espacio vectroial para generar el muestreo
+tp = np.linspace(0, T, P) #(inicio, final, numero de elementos)
+
+#Creacion de la forma de onda de la portadora
+sen = np.sin(2*np.pi*f*tp)
+
+''''graficar la funcion senoidal'''
+plt.plot(tp, sen)
+plt.savefig('Portadora')
+
+
+
+
+#frecuencia de muestreo(numero de muestras por segundo)
+fs = P/T
+
+#crear el espacio temporal para Tx
+
+tx = np.linspace(0, N*T, N*P)
+
+#inicializando el vector de senal 
+senal = np.zeros(tx.shape)
+
+#senal modulada para un BPSK
+for k, b in enumerate(bits):
+  if b == 1:
+    senal[k*P: (k+1)*P] = b*sen
+  else:
+    senal[k*P: (k+1)*P] = -sen
+
+'''visualizacion de los primeros bits modulados'''
+pb = 5 #primeros 5 bits
+plt.figure()
+plt.plot(senal[0:pb*P])
+plt.savefig('Modulacion')
+
+
+
+
+'''
+PARTE 2 
+'''
+#Potencia instantanea
+
+Pi = senal**2
+
+#Potencia promedio
+
+Ps = integrate.trapz(Pi, tx) / (N*T) #Listo
+
+print('la potencia promedio es', Ps)
+
+
+'''
+#Simular un canal ruidoso
+'''
+#relacion senal-a-ruido
+#Definicion de SNR
+SNR = 1 #se ueso un SNR de 1
+
+#potencia de ruido usando: SNR(dB) = 20 log10(Ps/Pn)
+
+Pn = Ps / (10**(SNR/10))
+
+#desviacion estandar del ruido
+sigma = np.sqrt(Pn)
+
+
+#crear ruido 
+
+ruido = np.random.normal(0, sigma, senal.shape) 
+
+#Canal de senal recibida
+
+Rx = senal + ruido # nueva senal con ruido 
+
+'''Graficar con ruido'''
+plt.figure()
+plt.plot(Rx[0:pb*P])
+plt.savefig('Modulacion ruido')
+
+'''
+5
+'''
+#descripcion de enegia 
+
+E = np.sum(sen**2)
+
+#inicializacion del vector de bits recibido
+
+bitsRx = np.zeros(N)
+
+#decodificacion de la senal por deteccion de energia 
+for k, b in enumerate(bits):
+  Ep = np.sum(Rx[k*P: (k+1)*P] * sen) #producto interno de dos funciones 
+  if Ep > E/2:
+    bitsRx[k] = 1
+  else:
+    bitsRx[k] = 0
+
+#Calculo de errores y de BER
+
+err = np.sum(np.abs(bits-bitsRx))
+BER = err/N
+
+
+#matriz
+errm = np.array(np.abs(bits-bitsRx))
+rr = len(errm) #nuemero de errores
+
+#print(rr)
+
+BERm = errm/rr
+brr = len(BERm)
+#print(brr)
+
+print('El nuemro de errores es', rr)
+print('El BER es', BER)
+
+'''Grafica Error vs BER'''
+
+plt.figure()
+plt.plot(BERm, errm)
+plt.savefig('Grafica')
